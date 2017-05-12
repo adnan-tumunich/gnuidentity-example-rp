@@ -5,6 +5,11 @@ require 'base64'
 require 'date'
 require 'net/http'
 
+configure do
+  set :bind, '0.0.0.0'
+  set :port, '4567'
+end
+
 enable :sessions
 
 requiredInfo = [ "email", "name" ]
@@ -114,6 +119,7 @@ get "/login" do
   #  identity = params[:identity]
   #end
 
+  p session
   if (!identity.nil?)
     token = $knownIdentities[identity]
     p token
@@ -165,3 +171,33 @@ get "/login" do
     #  $knownIdentities[identity] = grant_lbl
   end
 end
+
+get '/authorize'
+  #Step #3
+  identity = session["user"]
+  client = param[:client_id]
+  redirect_uri = param[:redirect_uri]
+  scope = param[:scope]
+
+  if (!identity.nil?)
+    token = $knownIdentities[identity]
+    if (!token.nil?)
+        #Step #8
+        #TODO: For later: Maybe add consent page
+        #TODO: Build AAT and code
+        #TODO: Associate AAT with client and user and CODE
+        #(TODO: Check if client is known)
+        code = rand()
+        redirect redirect_uri+"?code="+code
+    end
+end
+#Step #4
+  redirect "/login"
+
+end
+
+get '/token'
+  #Step #9
+  #TODO: Give token to client, IF Authorization header matches client_id:secret and return AAT
+end
+
