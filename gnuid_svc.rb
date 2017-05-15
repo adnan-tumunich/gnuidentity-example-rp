@@ -140,7 +140,7 @@ get "/login" do
     #end
     
     if (!token.nil?)
-      redirect "/"
+        redirect "/"
     end
 
   end
@@ -160,7 +160,11 @@ get "/login" do
       return "You did not provide a valid phone attribute. Please grant us access to your phone number so we can call you in emergencies!<br/> <a href=http://localhost:8000/index.html#/identities/#{identity}?requested_by=http%3A//localhost%3A4567/&requested_attrs=phone>Grant access</a>"
     end
     #Handle token contents
-    redirect "/"
+    if session["redirect_uri_authorize"]
+        redirect session["redirect_uri_authorize"]
+    else
+      redirect "/"
+    end
   elsif (identity.nil?)
     nonce = rand(100000)
     session["id"] = rand(100000)
@@ -183,6 +187,8 @@ get '/authorize' do
   client_id = params['client_id']
   redirect_uri = params['redirect_uri']
   scope = params['scope']
+  session["redirect_uri_authorize"] = 'http://'+ env["HTTP_HOST"]+env["REQUEST_URI"]
+
 
   unless identity.nil?
     token = $knownIdentities[identity]
