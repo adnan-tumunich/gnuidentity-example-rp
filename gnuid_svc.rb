@@ -4,6 +4,7 @@ require 'json'
 require 'base64'
 require 'date'
 require 'net/http'
+require 'securerandom'
 
 configure do
   set :bind, '0.0.0.0'
@@ -20,6 +21,10 @@ $knownIdentities = {}
 $passwords = {}
 $codes = {}
 $nonces = {}
+$aat = {}
+$knownClients = {'random_client_id' => 'lksajr327048olkxjf075342jldsau0958lkjds'}
+
+
 
 def exchange_code_for_token(id_ticket, expected_nonce)
   p "Expected nonce: "+expected_nonce.to_s
@@ -172,32 +177,63 @@ get "/login" do
   end
 end
 
-get '/authorize'
+get '/authorize' do
   #Step #3
   identity = session["user"]
-  client = param[:client_id]
-  redirect_uri = param[:redirect_uri]
-  scope = param[:scope]
+  client_id = params['client_id']
+  redirect_uri = params['redirect_uri']
+  scope = params['scope']
 
-  if (!identity.nil?)
+  unless identity.nil?
     token = $knownIdentities[identity]
-    if (!token.nil?)
+    unless token.nil?
         #Step #8
         #TODO: For later: Maybe add consent page
-        #TODO: Build AAT and code
+        #DONE: Build AAT and code
         #TODO: Associate AAT with client and user and CODE
         #(TODO: Check if client is known)
-        code = rand()
-        redirect redirect_uri+"?code="+code
+        
+        #v4 UUID
+        aat = SecureRandom.uuid
+
+        authorization_code = SecureRandom.hex
+        $aat[authorization_code] = [aat,client_id]
+
+        redirect redirect_uri+"?code="+authorization_code
+      
     end
-end
-#Step #4
-  redirect "/login"
+  end
+
+
+  #Step #4
+redirect "/login"
 
 end
 
-get '/token'
+post '/token' do
   #Step #9
   #TODO: Give token to client, IF Authorization header matches client_id:secret and return AAT
+  puts env
+  if env['HTTP_AUTHORIZATION'] 
+    auth_header = Base64.decode64(env['HTTP_AUTHORIZATION'].split(' ', 2).last || '').split(/:/, 2)
+    puts "Authoriztion exists #{auth_header.inspect}"
+  else
+    halt 401
+  end
+
+  client_id = auth_header[0]  
+  client_secret = auth_header[1]
+  authorization_code = params['code']
+  
+  puts authorization_code
+  puts "AAT code" + $aat[authorization_code].inspect
+  puts $aat.inspect
+  if $aat[authorization_code] && !$knownClients[client_id].nil? 
+    {access_token: $aat[authorization_code][0],token_type:"bearer",expires_in:2592000,scope:"uma_authorization",uid:SecureRandom.uuid}.to_json
+  else
+    halt 401
+  end
+
+
 end
 
