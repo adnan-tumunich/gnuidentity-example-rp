@@ -42,6 +42,16 @@ $knownClients = {'random_client_id' => 'lksajr327048olkxjf075342jldsau0958lkjds'
 
 
 
+def check_nil(var,error)
+  if var.nil? 
+    
+    status 400
+    content_type :json 
+    {:error => error}.to_json
+  end
+end
+
+
 
 def validate_bearer_token(env,token_array)
   bearer = env.fetch('HTTP_AUTHORIZATION', '').slice(7..-1)
@@ -371,7 +381,23 @@ post '/rpt_status' do
 
   valid = validate_bearer_token(env,valid_pat)
   if valid
-    permission_ticket = @request_payload["rpt"]
+    rpt = @request_payload["rpt"]
+
+    check_nil(rpt,"No RPT given")
+
+    permission_ticket = rpt_scope[rpt]
+
+    check_nil(permission_ticket, "No permission associated with RPT")
+    check_nil(permisson_reg[permission_ticket], "Permission expired")
+
+    
+    resource_id = permission_reg[permission_ticket][0]
+    scope = permission_reg[permission_ticket][1]
+
+
+
+  else
+    halt 401
   end
 
 
