@@ -21,8 +21,49 @@ $knownIdentities = {}
 $passwords = {}
 $codes = {}
 $nonces = {}
+
+#{"authorization_code" => ["AAT", "client_id"]}
 $aat = {}
+
+#list of valid Authorization API Access Tokens
+valid_aat = ["valid_aat_1"]
+
+#list of valid protection API Access Tokens
+valid_pat = ["valid_pat_1"]
+
+#{"permission_ticket" => ["resource_id",["scope_action","scope_def"]]}
+permission_reg = {}
+
+#requesting party token
+#{"rpt" => "permission_ticket"}
+rpt_scope = {}
+
 $knownClients = {'random_client_id' => 'lksajr327048olkxjf075342jldsau0958lkjds'}
+
+
+
+
+def validate_bearer_token(env,token_array)
+  bearer = env.fetch('HTTP_AUTHORIZATION', '').slice(7..-1)
+
+  #check if PAT is valid
+  valid = false
+  if bearer.nil?
+    return false
+  end
+
+  token_array.each do |at| 
+    if at == bearer
+      valid = true
+      break
+    end
+  end
+
+  return valid 
+
+
+end
+
 
 
 
@@ -204,6 +245,7 @@ get '/authorize' do
 
         authorization_code = SecureRandom.hex
         $aat[authorization_code] = [aat,client_id]
+        valid_aat << aat
 
         redirect redirect_uri+"?code="+authorization_code
       
@@ -243,3 +285,95 @@ post '/token' do
 
 end
 
+before '/resource_perm_reg' do
+  request.body.rewind
+  @request_payload = JSON.parse request.body.read
+end
+
+#Resource permission registration
+post '/resource_perm_reg' do 
+  
+  #check if PAT is valid
+  valid = validate_bearer_token(env,valid_pat)
+  
+  if valid 
+    rsrc_id = @request_payload["resource_set_id"]
+    scopes = @request_payload["scopes"]
+
+    scope_acton = scopes[0]
+    scope_definition = scopes[1]
+
+
+
+
+    permission_ticket = SecureRandom.uuid
+    permission_reg[permission_ticket] = [rsrc_id,scopes]
+
+    puts permission_reg.inspect
+    status 201
+    content_type :json 
+    {:ticket => permission_ticket}.to_json
+    
+  else
+    halt 401
+  end
+end
+
+
+
+before '/rpt' do
+  request.body.rewind
+  @request_payload = JSON.parse request.body.read
+end
+
+#RPT generation
+post '/rpt' do
+  valid = validate_bearer_token(env,valid_aat)
+  if valid
+    permission_ticket = @request_payload["ticket"]
+
+    #Check if ticket exists 
+    if permission_reg[permission_ticket]
+      rsrc_id = permission_reg[permission_ticket][0]
+      scopes = permission_reg[permission_ticket][1]
+    else
+      status 400
+      content_type :json 
+      {:error => "expired_ticket"}.to_json
+    end
+
+
+    #TODO: Check if user is authorized
+
+
+    #Issue an RPT connecting resource & scope to RPT via permission ticket
+    rpt = SecureRandom.hex
+    rpt_scope[rpt] = permission_ticket
+
+    puts rpt_scope.inspect
+
+    status 200
+    content_type :json 
+    {:rpt => rpt}.to_json
+  else
+    halt 401
+  end
+end
+
+
+before '/rpt_status' do
+  request.body.rewind
+  @request_payload = JSON.parse request.body.read
+end
+
+#RPT introspection endpoint
+post '/rpt_status' do 
+
+  valid = validate_bearer_token(env,valid_pat)
+  if valid
+    permission_ticket = @request_payload["rpt"]
+  end
+
+
+
+end
