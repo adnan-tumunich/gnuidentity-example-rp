@@ -388,11 +388,32 @@ post '/rpt_status' do
     permission_ticket = rpt_scope[rpt]
 
     check_nil(permission_ticket, "No permission associated with RPT")
-    check_nil(permisson_reg[permission_ticket], "Permission expired")
+    check_nil(permission_reg[permission_ticket], "Permission expired")
 
     
+    puts permission_reg.inspect
     resource_id = permission_reg[permission_ticket][0]
-    scope = permission_reg[permission_ticket][1]
+    scopes = permission_reg[permission_ticket][1]
+
+    expiry = Time.now.to_i + 10*60 #EPOCH
+
+    status 200
+    content_type :json 
+
+   {
+    active: true,
+    exp: expiry, #Time period of 10 minutes from now (OPTIONAL param - if not given, permission lasts forever)
+    permissions: [
+      {
+        resource_set_id: resource_id,
+        scopes: [
+          scopes[0],
+          scopes[1]
+         ],
+        exp: expiry
+      }
+    ]
+   }.to_json
 
 
 
