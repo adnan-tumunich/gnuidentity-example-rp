@@ -1,0 +1,36 @@
+
+
+Step 2:
+
+Policy:
+
+X.a1
+
+Step 3:
+RP.a2 <- X.a1
+
+Step 1:
+#create identity X (Issuer)_
+gnunet-identity -C X
+
+X.a1 <- User (e.g. Adnan)
+
+CRED=gnunet-credential --issue -ego=X --subject User(Pubkey) --attribute=a1 --ttl=1y
+
+#User stores this credential
+gnunet-namestore -z User -a -n "credFromX" -t CRED -V "$CRED"
+
+
+Step 4: 
+req_ver_attrs -> a2 
+
+# login flow starts here
+# user gives back a JWT containing a1
+
+Step 5: Back to example RP 
+Post to the verify endpoint in format specified in 
+test_credential_verify_rest.sh
+
+If you get a 200 then its okay and verified
+
+Step 6: Grant access to the requested resource
