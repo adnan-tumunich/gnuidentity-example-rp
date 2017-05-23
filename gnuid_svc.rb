@@ -37,6 +37,10 @@ permission_reg = {}
 #requesting party token
 #{"rpt" => "permission_ticket"}
 rpt_scope = {}
+#Sample policy
+#For resource_set_id 123 and read permission
+#Ego: IssuerUniversity - XW0HP8SEQZ4SQGEH3PSHBB9E0TKDCQC6DNCX9QAYS0K5XXHBJJ20
+policy = {name: '123_read', value: 'XW0HP8SEQZ4SQGEH3PSHBB9E0TKDCQC6DNCX9QAYS0K5XXHBJJ20.student'}
 
 $knownClients = {'random_client_id' => 'lksajr327048olkxjf075342jldsau0958lkjds'}
 
