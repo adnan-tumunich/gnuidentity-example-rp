@@ -1,13 +1,4 @@
-
-
-Step 2:
-
-Policy:
-
-X.a1
-
-Step 3:
-RP.a2 <- X.a1
+Step 0: Make a control flow diagram from the client's perspective
 
 Step 1:
 #create identity X (Issuer)_
@@ -21,6 +12,35 @@ CRED=gnunet-credential --issue -ego=X --subject User(Pubkey) --attribute=a1 --tt
 gnunet-namestore -z User -a -n "credFromX" -t CRED -V "$CRED"
 
 
+
+
+Step 2:
+
+Get policy with timeout (via commandline) -  if it times out then not found - timeout 30s 
+gnunet-gns -u "<resource_id>_<action>" -t POLICY -z ROPUBKEY
+
+Policy:
+
+X.a1
+
+Step 3:
+example-rp.a2 <- X.a1
+
+
+#a2 is an arbitrary attribute 
+gnunet-namestore -p -z example-rp -a -n a2 -t ATTR -V "X_publickey a1" -e 5m 
+
+gnunet-namestore -p -z example-rp -a -n user -t ATTR -V "KNKSSJW5X9ERZ9AJ88D202WPFEGCZFJ2X8E5R90C8DNXDQXPQ8YG student" -e 5m
+
+Result:
+user:
+May 24 10:13:40-228019 gnunet-namestore-3757 ERROR 8 len attr
+	ATTR: KNKSSJW5X9ERZ9AJ88D202WPFEGCZFJ2X8E5R90C8DNXDQXPQ8YG student (5 m)	
+
+
+
+
+
 Step 4: 
 req_ver_attrs -> a2 
 
@@ -32,5 +52,7 @@ Post to the verify endpoint in format specified in
 test_credential_verify_rest.sh
 
 If you get a 200 then its okay and verified
+
+give one attribute and all credentials and then second attribute and all credentials 
 
 Step 6: Grant access to the requested resource

@@ -22,6 +22,10 @@ $passwords = {}
 $codes = {}
 $nonces = {}
 
+#Self EGO - for GNS
+ego = '87DYZCD8DV2ENR8RC2S425FZPB93CV56XHG4DAQVVZ93RCWES6M0'
+ego_name = 'example-rp'
+
 #{"authorization_code" => ["AAT", "client_id"]}
 $aat = {}
 
@@ -31,18 +35,48 @@ valid_aat = ["valid_aat_1"]
 #list of valid protection API Access Tokens
 valid_pat = ["valid_pat_1"]
 
-#{"permission_ticket" => ["resource_id",["scope_action","scope_def"]]}
+#{"permission_ticket" => ["resource_id",["scope_action1", "scope_action2", ...]]}
 permission_reg = {}
 
 #requesting party token
 #{"rpt" => "permission_ticket"}
 rpt_scope = {}
+
 #Sample policy
 #For resource_set_id 123 and read permission
-#Ego: IssuerUniversity - XW0HP8SEQZ4SQGEH3PSHBB9E0TKDCQC6DNCX9QAYS0K5XXHBJJ20
-policy = {name: '123_read', value: 'XW0HP8SEQZ4SQGEH3PSHBB9E0TKDCQC6DNCX9QAYS0K5XXHBJJ20.student'}
+#Ego: IssuerUniversity - KNKSSJW5X9ERZ9AJ88D202WPFEGCZFJ2X8E5R90C8DNXDQXPQ8YG
+policy = {name: '123_read', value: ['KNKSSJW5X9ERZ9AJ88D202WPFEGCZFJ2X8E5R90C8DNXDQXPQ8YG.student']}
 
 $knownClients = {'random_client_id' => 'lksajr327048olkxjf075342jldsau0958lkjds'}
+
+
+def get_policy
+  #TODO: Implement a REST call to GNS to get the policy
+  return policy 
+end
+
+# policy_hash -> {name: '123_read', value: ['XW0HP8SEQZ4SQGEH3PSHBB9E0TKDCQC6DNCX9QAYS0K5XXHBJJ20.student']}
+#permission_value -> [resource_id, [scopes]]
+def resolve_policy(permission_value)
+  policy = get_policy(permission_value)
+  check_nil(policy,"Invalid scopes")
+  resource_id,action = policy["name"].split('_')
+  policy_hash = {}
+  policy["value"].each do |condition|
+    issuer = condition.split('.')[0]
+    policy_hash[issuer] = condition.split('.')[1]
+  end
+end
+
+
+def issue_attrs
+
+end
+
+
+
+
+
 
 
 
@@ -314,12 +348,7 @@ post '/resource_perm_reg' do
     rsrc_id = @request_payload["resource_set_id"]
     scopes = @request_payload["scopes"]
 
-    scope_acton = scopes[0]
-    scope_definition = scopes[1]
-
-
-
-
+    
     permission_ticket = SecureRandom.uuid
     permission_reg[permission_ticket] = [rsrc_id,scopes]
 
@@ -410,10 +439,7 @@ post '/rpt_status' do
     permissions: [
       {
         resource_set_id: resource_id,
-        scopes: [
-          scopes[0],
-          scopes[1]
-         ],
+        scopes: scopes,
         exp: expiry
       }
     ]
