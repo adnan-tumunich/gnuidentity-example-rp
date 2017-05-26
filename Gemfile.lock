@@ -30,6 +30,7 @@ PLATFORMS
 
 DEPENDENCIES
   haml
+  multi_json
   sinatra
   sinatra-contrib
 

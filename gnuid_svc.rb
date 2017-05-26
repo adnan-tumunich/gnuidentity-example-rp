@@ -5,6 +5,7 @@ require 'base64'
 require 'date'
 require 'net/http'
 require 'securerandom'
+require 'multi_json'
 
 configure do
   set :bind, '0.0.0.0'
@@ -36,11 +37,19 @@ valid_aat = ["valid_aat_1"]
 valid_pat = ["valid_pat_1"]
 
 #{"permission_ticket" => ["resource_id",["scope_action1", "scope_action2", ...]]}
-permission_reg = {}
+permission_reg = {"7d282e1b-28b3-4ecf-979f-2969078daf57"=>["112210f47de98100", ["view", "http://photoz.example.com/dev/actions/print"]]}
 
 #requesting party token
 #{"rpt" => "permission_ticket"}
 rpt_scope = {}
+
+# ticket => client_redirect_uri
+claims_redirect_uris = {"7d282e1b-28b3-4ecf-979f-2969078daf57" => "http://client.example.com"}
+
+
+#ticket => JWT containing credentials (from GNS)
+gathered_claims = {}
+
 
 #Sample policy
 #For resource_set_id 123 and read permission
@@ -74,6 +83,15 @@ def issue_attrs
 end
 
 
+def json(content)
+    MultiJson.dump(content, pretty: true)
+end
+
+def decode_json(content)
+    MultiJson.load(content, symbolize_keys: true)
+end
+
+
 
 
 
@@ -82,7 +100,7 @@ end
 
 def check_nil(var,error)
   if var.nil? 
-    
+
     status 400
     content_type :json 
     {:error => error}.to_json
@@ -197,16 +215,16 @@ get '/' do
         :title => "Userinfo",
         :subtitle => "Welcome back #{$knownIdentities[identity]["full_name"]}",
         :content => "Your <b>phone</b> number is: #{phone}<br/>Your token will <b>expire at</b>: #{Time.at(exp).to_s}.<br/>Used <b>ticket</b>: #{$codes[identity]}.<br/>Token: #{$knownIdentities[identity]}<br/>"}
+      end
     end
+
+    redirect "/login"
   end
 
-  redirect "/login"
-end
-
-get "/login" do
-  identity = session["user"]
-  token = params[:id_token]
-  id_ticket = params[:ticket]
+  get "/login" do
+    identity = session["user"]
+    token = params[:id_token]
+    id_ticket = params[:ticket]
 
   # Identity parameter takes precendence over cookie
   #if (!params[:identity].nil?)
@@ -229,7 +247,7 @@ get "/login" do
     #end
     
     if (!token.nil?)
-        redirect "/"
+      redirect "/"
     end
 
   end
@@ -250,7 +268,7 @@ get "/login" do
     end
     #Handle token contents
     if session["redirect_uri_authorize"]
-        redirect session["redirect_uri_authorize"]
+      redirect session["redirect_uri_authorize"]
     else
       redirect "/"
     end
@@ -296,13 +314,13 @@ get '/authorize' do
         valid_aat << aat
 
         redirect redirect_uri+"?code="+authorization_code
-      
+
+      end
     end
-  end
 
 
   #Step #4
-redirect "/login"
+  redirect "/login"
 
 end
 
@@ -340,7 +358,7 @@ end
 
 #Resource permission registration
 post '/resource_perm_reg' do 
-  
+
   #check if PAT is valid
   valid = validate_bearer_token(env,valid_pat)
   
@@ -383,11 +401,34 @@ post '/rpt' do
       status 400
       content_type :json 
       {:error => "expired_ticket"}.to_json
+      halt 400, json({error: "expired_ticket"})
     end
 
 
-    #TODO: Check if user is authorized
-
+    if gathered_claims[permission_ticket].nil?
+      status 403
+      content_type :json
+      halt 403, json({error: "need_info",
+       error_details: {
+           requesting_party_claims: {
+             required_claims: [
+              #Not being interpreted, so we can leave this commented for now
+=begin
+               {
+                 "name": "email23423453ou453", #get from policy
+                 "claim_type": "urn:gns:credential:1.0",
+                 "claim_token_format": 
+                 ["http://gnunet.org/specs/credential"],
+                 "issuer": ["https://example.com/idp"] #Get  from policy
+               }
+=end
+               ],
+               redirect_user: true,
+               ticket: permission_ticket
+             }
+             }})
+        
+    end
 
     #Issue an RPT connecting resource & scope to RPT via permission ticket
     rpt = SecureRandom.hex
@@ -402,6 +443,77 @@ post '/rpt' do
     halt 401
   end
 end
+
+
+#RPT claims gathering endpoint
+get '/rpt_claims' do 
+  claims_redirect_uris = params[:claims_redirect_uri]
+  valid = validate_bearer_token(env,valid_aat)
+  if valid
+    permission_ticket = params[:ticket]
+    #Check if ticket exists 
+    if permission_reg[permission_ticket]
+      rsrc_id = permission_reg[permission_ticket][0]
+      scopes = permission_reg[permission_ticket][1]
+    else
+      status 400
+      content_type :json 
+      {:error => "expired_ticket"}.to_json
+    end
+
+    session["user"]
+
+    puts "rpt claims"
+
+    redirect "gnuidentity://?redirect_uri=http%3A%2F%2Ftestservice.gnu%3A4567%2Fclaims_gathering_cb%3Fpermission_ticket%3D#{permission_ticket}\
+&client_id=YFJMNXKCQX99KECSE5MNQ3P1PTJMGBRNSBDCPFXZA3MM0HKNHNFG&issue_type=ticket\
+&requested_verified_attrs=user&nonce=1234"#include the attributes required from policy
+    #TODO nonce should be a random integer 
+
+
+  else
+    halt 401
+  end
+
+
+
+
+end
+
+
+#Claims gathering callback - once claims are gathered they are pushed here
+get '/claims_gathering_cb' do
+  token = params[:id_token]
+  id_ticket = params[:ticket]
+  permission_ticket = params[:permission_ticket]
+
+ 
+  if (!id_ticket.nil?)
+    jwt_token = exchange_code_for_token(id_ticket, 1234) #Change nonce here
+    puts "JWT token"
+    p jwt_token
+    gathered_claims[permission_ticket] = jwt_token
+    #verify policy here
+    success = true
+    if success 
+
+      redirect claims_redirect_uris[permission_ticket] + "?authorization_state=claims_submitted"
+
+    else
+      gathered_claims[permission_ticket] = nil
+      redirect claims_redirect_uris[permission_ticket] + "?authorization_state=not_authorized"
+      
+    end
+
+  end
+
+
+end
+
+
+
+
+
 
 
 before '/rpt_status' do
@@ -433,8 +545,8 @@ post '/rpt_status' do
     status 200
     content_type :json 
 
-   {
-    active: true,
+    {
+      active: true,
     exp: expiry, #Time period of 10 minutes from now (OPTIONAL param - if not given, permission lasts forever)
     permissions: [
       {
@@ -443,7 +555,7 @@ post '/rpt_status' do
         exp: expiry
       }
     ]
-   }.to_json
+    }.to_json
 
 
 
