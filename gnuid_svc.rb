@@ -133,7 +133,7 @@ end
 
 
 
-def exchange_code_for_token(id_ticket, expected_nonce)
+def exchange_code_for_issuer(id_ticket, expected_nonce)
   p "Expected nonce: "+expected_nonce.to_s
   resp = `curl -X POST 'http://local.gnu:7776/idp/token?ticket=#{id_ticket}&expected_nonce=#{expected_nonce}'`
   p resp
@@ -154,6 +154,27 @@ def exchange_code_for_token(id_ticket, expected_nonce)
   $codes[identity] = id_ticket
   return identity
 end
+
+def exchange_code_for_token(id_ticket, expected_nonce)
+  p "Expected nonce: "+expected_nonce.to_s
+  resp = `curl -X POST 'http://local.gnu:7776/idp/token?ticket=#{id_ticket}&expected_nonce=#{expected_nonce}'`
+  p resp
+  json = JSON.parse(resp)
+  p json
+  return nil if json.nil? or json.empty?
+  token = json["token"]
+  return nil if token.nil?
+  header_b64 = token.split(".")[0]
+  payload_b64 = token.split(".")[1]
+  signature = token.split(".")[2]
+  plain = Base64.decode64(payload_b64)
+  payload = JSON.parse(plain)
+  return nil unless expected_nonce == payload["nonce"].to_i
+  p payload
+  return payload
+end
+
+
 
 def is_token_expired (token)
   return true if token.nil?
@@ -253,7 +274,7 @@ get '/' do
   end
 
   if (!id_ticket.nil?)
-    identity = exchange_code_for_token(id_ticket, $nonces[session["id"]])
+    identity = exchange_code_for_issuer(id_ticket, $nonces[session["id"]])
     p "Deleting nonce"
     $nonces[session["id"]] = nil
     if (identity.nil?)
@@ -492,6 +513,9 @@ get '/claims_gathering_cb' do
     jwt_token = exchange_code_for_token(id_ticket, 1234) #Change nonce here
     puts "JWT token"
     p jwt_token
+    puts claims_redirect_uris.inspect
+    puts permission_ticket.inspect
+    puts jwt_token.class
     gathered_claims[permission_ticket] = jwt_token
     #verify policy here
     success = true
