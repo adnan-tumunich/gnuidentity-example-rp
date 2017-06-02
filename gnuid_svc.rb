@@ -23,6 +23,30 @@ $passwords = {}
 $codes = {}
 $nonces = {}
 
+
+
+#TODO: Delete after testing
+#Sample JWT for testing
+jwt_token_dummy = 
+{
+  "iss": "07TAXQQ3VW71F33JA8ZEZ37EW3KZ94PYNJNCNS9X720KRCWMSCSG",
+  "aud": "YFJMNXKCQX99KECSE5MNQ3P1PTJMGBRNSBDCPFXZA3MM0HKNHNFG",
+  "sub": "07TAXQQ3VW71F33JA8ZEZ37EW3KZ94PYNJNCNS9X720KRCWMSCSG",
+  "nbf": 1496134978288178,
+  "iat": 1496134978288178,
+  "exp": 1496136778288178,
+  "nonce": "1234",
+  "user": {
+    "issuer": "KNKSSJW5X9ERZ9AJ88D202WPFEGCZFJ2X8E5R90C8DNXDQXPQ8YG",
+    "subject": "07TAXQQ3VW71F33JA8ZEZ37EW3KZ94PYNJNCNS9X720KRCWMSCSG",
+    "signature": "AyoKojAYKLMJNF1VldHY5g0zikT9g1J7B6Iq8m/e7p8JF9PpB3hB0B5sqc/UGOHgQxGTCxAQyK/EF4PREYbpww===",
+    "attribute": "student",
+    "expiration": 1495885180692747
+  }
+}
+
+
+
 #Self EGO - for GNS
 ego = '87DYZCD8DV2ENR8RC2S425FZPB93CV56XHG4DAQVVZ93RCWES6M0'
 ego_name = 'example-rp'
@@ -531,6 +555,57 @@ get '/claims_gathering_cb' do
 
   end
 
+
+end
+
+
+
+
+get '/claims_gathering_cb_dummy' do
+  
+
+  jwt_token = jwt_token_dummy 
+  requested_verified_attr = "user"
+  subject = "07TAXQQ3VW71F33JA8ZEZ37EW3KZ94PYNJNCNS9X720KRCWMSCSG"
+  issuer = "YFJMNXKCQX99KECSE5MNQ3P1PTJMGBRNSBDCPFXZA3MM0HKNHNFG"
+  attribute = "student"
+  
+  puts "JWT token"
+  p jwt_token
+
+  permission_ticket = "7d282e1b-28b3-4ecf-979f-2969078daf57"
+
+  puts claims_redirect_uris.inspect
+  puts permission_ticket.inspect
+  puts jwt_token.class
+  gathered_claims[permission_ticket] = jwt_token
+  
+  #verify policy here
+  requested_verified_attr = "user"
+  jwt_token_credential = jwt_token[requested_verified_attr.to_sym]
+
+  puts jwt_token_credential
+
+  credential = "#{jwt_token_credential[:issuer]}.#{jwt_token_credential[:attribute]} -> #{jwt_token_credential[:subject]} | #{jwt_token_credential[:signature]} | #{jwt_token_credential[:expiration]}"
+  puts credential
+
+  verify_command = "gnunet-credential --verify --issuer=#{issuer} --attribute=#{attribute} --subject=#{subject} --credential=\"#{credential}\""
+  puts verify_command
+
+
+
+  success = true
+  if success 
+
+    redirect claims_redirect_uris[permission_ticket] + "?authorization_state=claims_submitted"
+
+  else
+    gathered_claims[permission_ticket] = nil
+    redirect claims_redirect_uris[permission_ticket] + "?authorization_state=not_authorized"
+    
+  end
+
+  
 
 end
 
