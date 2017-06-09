@@ -48,8 +48,12 @@ jwt_token_dummy =
 
 
 #Self EGO - for GNS
-ego = '87DYZCD8DV2ENR8RC2S425FZPB93CV56XHG4DAQVVZ93RCWES6M0'
-ego_name = 'example-rp'
+# Currently this doesn't work - only works for master zone 
+#ego = '87DYZCD8DV2ENR8RC2S425FZPB93CV56XHG4DAQVVZ93RCWES6M0'
+#ego_name = 'example-rp'
+ego = 'YFJMNXKCQX99KECSE5MNQ3P1PTJMGBRNSBDCPFXZA3MM0HKNHNFG'
+ego_name = 'master-zone'
+
 
 #{"authorization_code" => ["AAT", "client_id"]}
 $aat = {}
@@ -566,9 +570,9 @@ get '/claims_gathering_cb_dummy' do
 
   jwt_token = jwt_token_dummy 
   requested_verified_attr = "user"
-  subject = "07TAXQQ3VW71F33JA8ZEZ37EW3KZ94PYNJNCNS9X720KRCWMSCSG"
-  issuer = "YFJMNXKCQX99KECSE5MNQ3P1PTJMGBRNSBDCPFXZA3MM0HKNHNFG"
-  attribute = "student"
+  #subject = "07TAXQQ3VW71F33JA8ZEZ37EW3KZ94PYNJNCNS9X720KRCWMSCSG" #Adnan
+  #issuer = "YFJMNXKCQX99KECSE5MNQ3P1PTJMGBRNSBDCPFXZA3MM0HKNHNFG" #master-zone
+  #Q?: Is the subject iss from JWT or subject from credential in JWT? 
   
   puts "JWT token"
   p jwt_token
@@ -589,20 +593,26 @@ get '/claims_gathering_cb_dummy' do
   credential = "#{jwt_token_credential[:issuer]}.#{jwt_token_credential[:attribute]} -> #{jwt_token_credential[:subject]} | #{jwt_token_credential[:signature]} | #{jwt_token_credential[:expiration]}"
   puts credential
 
-  verify_command = "gnunet-credential --verify --issuer=#{issuer} --attribute=#{attribute} --subject=#{subject} --credential=\"#{credential}\""
+
+  verify_command = "gnunet-credential --verify --issuer=#{ego} --attribute=#{requested_verified_attr} --subject=#{jwt_token_credential[:subject]} --credential=\"#{credential}\""
   puts verify_command
 
 
+  #TODO: timeout 10 - increase to 30
+  response = `timeout 10 #{verify_command}`
 
-  success = true
+  if response == ""
+    success = false
+  elsif response[-12..-1] == "Successful.\n"
+    success = true
+  end
+  
+
   if success 
-
     redirect claims_redirect_uris[permission_ticket] + "?authorization_state=claims_submitted"
-
   else
     gathered_claims[permission_ticket] = nil
     redirect claims_redirect_uris[permission_ticket] + "?authorization_state=not_authorized"
-    
   end
 
   
