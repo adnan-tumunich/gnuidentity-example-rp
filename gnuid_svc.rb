@@ -84,25 +84,50 @@ gathered_claims = {}
 #Ego: IssuerUniversity - KNKSSJW5X9ERZ9AJ88D202WPFEGCZFJ2X8E5R90C8DNXDQXPQ8YG
 policy = {name: '123_read', value: ['KNKSSJW5X9ERZ9AJ88D202WPFEGCZFJ2X8E5R90C8DNXDQXPQ8YG.student']}
 
+
 $knownClients = {'random_client_id' => 'lksajr327048olkxjf075342jldsau0958lkjds'}
 
 
-def get_policy
-  #TODO: Implement a REST call to GNS to get the policy
-  return policy 
+def check_nil(var,error)
+  if var.nil? 
+
+    status 400
+    content_type :json 
+    {:error => error}.to_json
+  end
+end
+
+def check_empty(var,error)
+  if var.empty?
+    status 400
+    content_type :json
+    {:error => error}.to_json
+  end
+end
+
+
+
+def get_policy(resource_set_id, scopes)
+  policy_names = []
+  scopes.each |scope| do 
+    policy_names.push("#{resource_set_id}_#{scope}")
+  end
+  #TODO: Implement a command line call to GNS to get the policy
+  return policy_names
 end
 
 # policy_hash -> {name: '123_read', value: ['XW0HP8SEQZ4SQGEH3PSHBB9E0TKDCQC6DNCX9QAYS0K5XXHBJJ20.student']}
 #permission_value -> [resource_id, [scopes]]
 def resolve_policy(permission_value)
-  policy = get_policy(permission_value)
-  check_nil(policy,"Invalid scopes")
+  policy = get_policy(resource_set_id,scopes)
+  check_empty(policy,"Invalid scopes")
   resource_id,action = policy["name"].split('_')
   policy_hash = {}
   policy["value"].each do |condition|
     issuer = condition.split('.')[0]
     policy_hash[issuer] = condition.split('.')[1]
   end
+  return policy_hash
 end
 
 
@@ -125,15 +150,6 @@ end
 
 
 
-
-def check_nil(var,error)
-  if var.nil? 
-
-    status 400
-    content_type :json 
-    {:error => error}.to_json
-  end
-end
 
 
 

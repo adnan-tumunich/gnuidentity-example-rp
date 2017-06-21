@@ -183,5 +183,12 @@ gnunet-namestore -z alice -a -n "18687878_read" -t POLICY -V "{'array':['KNKSSJW
 
 TODO: 
 
-model resource owner public key inside UMA scope
-can a policy be defined like {'read': [Issuer.attribute], 'write': [Issuer.attribute1]}
+model resource owner public key inside UMA scope - to get the policies ( maybe resourceowner_resourceid_action)
+claims submitted -> next step is to get RPT (already implemented)
+Verification needs more work - credentials need to be appended (if more than one) and also AND, OR and other cases need to be handled
+
+--------------------------------------------------------------
+
+Get POLICY:
+gnunet-gns -u 18687878_read.MFVZ0430P5CRHSYY8K23X45J06YYTXSJFG7PCTR608WZMJMBVBWG.zkey -t POLICY --raw
+
