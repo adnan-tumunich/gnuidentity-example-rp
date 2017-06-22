@@ -45,6 +45,21 @@ jwt_token_dummy =
   }
 }
 
+=begin
+permission_ticket hash
+
+perm_tkt_hash = {"7d282e1b-28b3-4ecf-979f-2969078daf57" => {
+    requested_verified_attributes => [],
+    scopes_hash => {
+      "read" => [{
+          "policy" => ["Issuer.attribute" => { gathered_claims => [] # JWT tokens from requesting party} ]
+           
+      }]
+    }
+}} 
+  
+=end
+
 
 
 #Self EGO - for GNS
@@ -65,7 +80,7 @@ valid_aat = ["valid_aat_1"]
 valid_pat = ["valid_pat_1"]
 
 #{"permission_ticket" => ["resource_id",["scope_action1", "scope_action2", ...]]}
-permission_reg = {"7d282e1b-28b3-4ecf-979f-2969078daf57"=>["112210f47de98100", ["view", "http://photoz.example.com/dev/actions/print"]]}
+permission_reg = {"7d282e1b-28b3-4ecf-979f-2969078daf57"=>["MFVZ0430P5CRHSYY8K23X45J06YYTXSJFG7PCTR608WZMJMBVBWG.18687878", ["read"]]}
 
 #requesting party token
 #{"rpt" => "permission_ticket"}
@@ -529,6 +544,10 @@ get '/rpt_claims' do
     session["user"]
 
     puts "rpt claims"
+    attribute_name = "user"
+    response = `gnunet-namestore -p -z master-zone -a -n #{requested_verified_attr} -t ATTR -V "KNKSSJW5X9ERZ9AJ88D202WPFEGCZFJ2X8E5R90C8DNXDQXPQ8YG student" -e 1d`
+
+
 
     redirect "gnuidentity://?redirect_uri=http%3A%2F%2Ftestservice.gnu%3A4567%2Fclaims_gathering_cb%3Fpermission_ticket%3D#{permission_ticket}\
 &client_id=YFJMNXKCQX99KECSE5MNQ3P1PTJMGBRNSBDCPFXZA3MM0HKNHNFG&issue_type=ticket\
