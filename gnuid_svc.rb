@@ -49,14 +49,35 @@ jwt_token_dummy =
 permission_ticket hash
 
 perm_tkt_hash = {"7d282e1b-28b3-4ecf-979f-2969078daf57" => {
-    requested_verified_attributes => [],
+   resource_owner_pkey: 
+   resource_set_id: 
+   scopes => [],
+   claim_redirect_uri => " ",
+   claims_array => ["Issuer.attribute", "Issuer2.attr2", "Issuer3.attr3"]
+   claims_gathered => {
+       "Issuer.attribute" => { 
+                                  issuer:
+                                  attribute: 
+                                  gathered_claims:
+                                  verified: 
+                                  }
+       "Issuer2.attributre2" => {
+                                  issuer: Issuer2
+                                  attribute: attribute2
+                                  gathered_claims: {}
+                                  verified: true/false
+                                  }
+   }
     scopes_hash => {
-      "read" => [{
-          "policy" => ["Issuer.attribute" => { gathered_claims => [] # JWT tokens from requesting party} ]
+      "read" => {
+          policy_name => " "
+          "policy_sets" => [["Issuer.attribute", "Issuer2.attribute2" ], ["Issuer3.attribute3"]] 
+          // Each sub-array is a complete permission set. So if one sub-array is satisfied then permission can be granted
+         
            
-      }]
-    }
-}} 
+      }
+   }    
+} 
   
 =end
 
@@ -122,18 +143,32 @@ end
 
 
 
-def get_policy(resource_set_id, scopes)
-  policy_names = []
-  scopes.each |scope| do 
-    policy_names.push("#{resource_set_id}_#{scope}")
+def get_policies(perm_tkt)
+  curr_perm = perm_tkt_hash[perm_tkt]
+  pkey = curr_perm["resource_owner_pkey"]
+  scopes = curr_perm["scopes"]
+  curr_perm["claims_array"] = []
+
+  scopes.each do |scope| 
+    policy_name = ("#{resource_set_id}_#{scope}")
+    curr_perm["scopes_hash"][scope]["policy_name"] = policy_name
+    get_policy_cmd = `gnunet-gns -u #{policy_name}.#{pkey}.zkey -t POLICY --raw`
+    curr_perm["scopes_hash"][scope]["policy_sets"] = []
+    policies = get_policy_cmd.split("\n")
+    policies.each do |policy|
+      policy_hash = JSON.parse(policy)
+      curr_perm["scopes_hash"][scope]["policy_sets"].push(policy_hash["policy"])
+      iss_attr_array = policy_hash["policy"]
+      iss_attr_array.each do |iss_attr|
+        curr_perm["claims_array"].push(iss_attr)
+      end
   end
-  #TODO: Implement a command line call to GNS to get the policy
-  return policy_names
 end
 
 # policy_hash -> {name: '123_read', value: ['XW0HP8SEQZ4SQGEH3PSHBB9E0TKDCQC6DNCX9QAYS0K5XXHBJJ20.student']}
 #permission_value -> [resource_id, [scopes]]
-def resolve_policy(permission_value)
+def resolve_policy(permission_ticket)
+
   policy = get_policy(resource_set_id,scopes)
   check_empty(policy,"Invalid scopes")
   resource_id,action = policy["name"].split('_')
@@ -144,6 +179,11 @@ def resolve_policy(permission_value)
   end
   return policy_hash
 end
+
+def gather_claims(permission_ticket)
+   
+end
+
 
 
 def issue_attrs
@@ -274,6 +314,21 @@ def getUser(identity)
   return $knownIdentities[identity]["full_name"] unless $knownIdentities[identity]["full_name"].nil?
   return $knownIdentities[identity]["sub"]
 end
+
+
+
+
+
+get '/test_cmd' do
+
+  r = `gnunet-gns -u 18687878_read.MFVZ0430P5CRHSYY8K23X45J06YYTXSJFG7PCTR608WZMJMBVBWG.zkey -t POLICY --raw`
+  x = r.split("\n")
+  puts x
+
+
+end
+
+
 
 get '/' do
   identity = session["user"]
@@ -529,7 +584,7 @@ end
 get '/rpt_claims' do 
   claims_redirect_uris = params[:claims_redirect_uri]
   valid = validate_bearer_token(env,valid_aat)
-  if valid
+  #if valid
     permission_ticket = params[:ticket]
     #Check if ticket exists 
     if permission_reg[permission_ticket]
@@ -545,23 +600,20 @@ get '/rpt_claims' do
 
     puts "rpt claims"
     attribute_name = "user"
-    response = `gnunet-namestore -p -z master-zone -a -n #{requested_verified_attr} -t ATTR -V "KNKSSJW5X9ERZ9AJ88D202WPFEGCZFJ2X8E5R90C8DNXDQXPQ8YG student" -e 1d`
 
 
+    #perm_tkt_hash[permission_ticket]
+
+    #response = `gnunet-namestore -p -z master-zone -a -n #{requested_verified_attr} -t ATTR -V "KNKSSJW5X9ERZ9AJ88D202WPFEGCZFJ2X8E5R90C8DNXDQXPQ8YG student" -e 1d`
 
     redirect "gnuidentity://?redirect_uri=http%3A%2F%2Ftestservice.gnu%3A4567%2Fclaims_gathering_cb%3Fpermission_ticket%3D#{permission_ticket}\
 &client_id=YFJMNXKCQX99KECSE5MNQ3P1PTJMGBRNSBDCPFXZA3MM0HKNHNFG&issue_type=ticket\
 &requested_verified_attrs=user&nonce=1234"#include the attributes required from policy
     #TODO nonce should be a random integer 
 
-
-  else
-    halt 401
-  end
-
-
-
-
+  #else
+ #   halt 401
+ # end
 end
 
 
@@ -571,8 +623,12 @@ get '/claims_gathering_cb' do
   id_ticket = params[:ticket]
   permission_ticket = params[:permission_ticket]
 
+  puts "here1"
+  puts "id ticket #{id_ticket} \n"
+  puts "perm #{permission_ticket}"
  
   if (!id_ticket.nil?)
+    puts "here"
     jwt_token = exchange_code_for_token(id_ticket, 1234) #Change nonce here
     puts "JWT token"
     p jwt_token
