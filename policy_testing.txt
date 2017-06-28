@@ -1,0 +1,347 @@
+
+perm_tkt_hash = {"7d282e1b-28b3-4ecf-979f-2969078daf57" => {
+   "resource_owner_pkey" => "ropkey",
+   "resource_set_id" => "1234",
+   "scopes" => ["read", "write"],
+   "claim_redirect_uri" => "http://192.168.33.10",
+   "claims_array" => ["Issuer.attr1", "Issuer2.attr2", "Issuer3.attr3"],
+    "scopes_hash" => {
+      "read" => {
+          "policy_name" => "182423_read",
+          "policy_sets" => [["Issuer.attr1", "Issuer2.attr2" ], ["Issuer3.attr3"]]
+                    
+      }
+   }    
+  }
+} 
+
+
+   #"req_ver_attr" => ["attr1", "attr2_by_self",...]
+   #req_ver_attr_http => "attr_by_self&"
+   #claims_gathered => {
+   #    "Issuer.attribute" => { 
+    #                              issuer:
+   #                               attribute: 
+   #                               gathered_claims:
+   #                               verified: 
+   #                               }
+   #    "Issuer2.attributre2" => {
+   #                               issuer: Issuer2
+   #                               attribute: attribute2
+   #                               gathered_claims: {}
+   #                               verified: true/false
+   #                               }
+   #}
+  
+
+  Test
+  get_policies:
+
+
+Initial
+perm_tkt_hash = {"7d282e1b-28b3-4ecf-979f-2969078daf57" => {
+   "resource_owner_pkey" => "ropkey",
+   "resource_set_id" => "1234",
+   "scopes" => ["read", "write"],
+   "claim_redirect_uri" => "http://192.168.33.10",
+   "claims_array" => ["Issuer.attr1", "Issuer2.attr2", "Issuer3.attr3"],
+    "scopes_hash" => {
+      "read" => {
+          "policy_name" => "182423_read",
+          "policy_sets" => [["Issuer.attr1", "Issuer2.attr2" ], ["Issuer3.attr3"]]
+                    
+      }
+   }    
+  }
+} 
+
+where 
+  get_policy_cmd ='{"policy":["Issuer.attr1","Issuer.attr2"]}' #`gnunet-gns -u #{policy_name}.#{pkey}.zkey -t POLICY --raw`
+
+
+Final:
+{"7d282e1b-28b3-4ecf-979f-2969078daf57"=>
+  {"resource_owner_pkey"=>"ropkey",
+   "resource_set_id"=>"1234",
+   "scopes"=>["read", "write"],
+   "claim_redirect_uri"=>"http://192.168.33.10",
+   "claims_array"=>
+    ["Issuer.attr1", "Issuer.attr2", "Issuer.attr1", "Issuer.attr2"],
+   "scopes_hash"=>
+    {"read"=>
+      {"policy_name"=>"1234_read",
+       "policy_sets"=>[["Issuer.attr1", "Issuer.attr2"]]},
+     "write"=>
+      {"policy_name"=>"1234_write",
+       "policy_sets"=>[["Issuer.attr1", "Issuer.attr2"]]}
+    }
+  }
+}
+
+
+gather_claims_request:
+
+Initial:
+perm_tkt_hash = {"7d282e1b-28b3-4ecf-979f-2969078daf57" => {
+   "resource_owner_pkey" => "ropkey",
+   "resource_set_id" => "1234",
+   "scopes" => ["read", "write"],
+   "claim_redirect_uri" => "http://192.168.33.10",
+   "claims_array" => ["Issuer.attr1", "Issuer2.attr2", "Issuer3.attr3"],
+    "scopes_hash" => {
+      "read" => {
+          "policy_name" => "182423_read",
+          "policy_sets" => [["Issuer.attr1", "Issuer2.attr2" ], ["Issuer3.attr3"]]
+                    
+      }
+   }    
+  }
+} 
+
+Final:
+{"7d282e1b-28b3-4ecf-979f-2969078daf57"=>
+  {"resource_owner_pkey"=>"ropkey",
+   "resource_set_id"=>"1234",
+   "scopes"=>["read", "write"],
+   "claim_redirect_uri"=>"http://192.168.33.10",
+   "claims_array"=>["Issuer.attr1", "Issuer2.attr2", "Issuer3.attr3"],
+   "scopes_hash"=>
+    {"read"=>
+      {"policy_name"=>"182423_read",
+       "policy_sets"=>[["Issuer.attr1", "Issuer2.attr2"], ["Issuer3.attr3"]]}},
+   "req_ver_attr"=>["attr1", "attr2", "attr3"],
+   "req_ver_attr_http"=>"attr1,attr2,attr3"}}
+
+
+
+resolve_policies: 
+
+1. 
+
+Initial:
+perm_tkt_hash = {"7d282e1b-28b3-4ecf-979f-2969078daf57" => {
+   "resource_owner_pkey" => "ropkey",
+   "resource_set_id" => "1234",
+   "scopes" => ["read", "write"],
+   "claim_redirect_uri" => "http://192.168.33.10",
+   "claims_array" => ["Issuer.attr1", "Issuer2.attr2", "Issuer3.attr3"],
+    "scopes_hash" => {
+      "read" => {
+          "policy_name" => "182423_read",
+          "policy_sets" => [["Issuer.attr1", "Issuer2.attr2" ], ["Issuer3.attr3"]]
+                    
+      }
+
+   }    
+  }
+
+calling verify_policies first with dummy data : 
+
+curr_perm["claims_gathered"] = {}
+  curr_perm["claims_gathered"]["attr1"] = {
+     'issuer' => "Issuer1",
+      'attribute' => "attr1", 
+      'gathered_claims' => {"attr1" => {"issuer" => "FLJKJLAFJL", "attribute" => "atttr1", "subject": "LAKSDJFLOWEUR"}},
+      'verified' => true
+  }
+  curr_perm["claims_gathered"]["attr2"] = {
+     'issuer' => "Issuer2",
+      'attribute' => "attr2", 
+      'gathered_claims' => {"attr2" => {"issuer" => "FLJKJLAFJL", "attribute" => "atttr2", "subject": "LAKSDJFLOWEUR"}},
+      'verified' => true
+  }
+
+
+
+  Intermediate:
+  {"7d282e1b-28b3-4ecf-979f-2969078daf57"=>
+  {"resource_owner_pkey"=>"ropkey",
+   "resource_set_id"=>"1234",
+   "scopes"=>["read", "write"],
+   "claim_redirect_uri"=>"http://192.168.33.10",
+   "claims_array"=>["Issuer.attr1", "Issuer2.attr2", "Issuer3.attr3"],
+   "scopes_hash"=>
+    {"read"=>
+      {"policy_name"=>"182423_read",
+       "policy_sets"=>[["Issuer.attr1", "Issuer2.attr2"], ["Issuer3.attr3"]]}},
+   "claims_gathered"=>
+    {"attr1"=>
+      {"issuer"=>"Issuer1",
+       "attribute"=>"attr1",
+       "gathered_claims"=>
+        {"attr1"=>
+          {"issuer"=>"FLJKJLAFJL",
+           "attribute"=>"atttr1",
+           :subject=>"LAKSDJFLOWEUR"}},
+       "verified"=>true},
+     "attr2"=>
+      {"issuer"=>"Issuer2",
+       "attribute"=>"attr2",
+       "gathered_claims"=>
+        {"attr2"=>
+          {"issuer"=>"FLJKJLAFJL",
+           "attribute"=>"atttr2",
+           :subject=>"LAKSDJFLOWEUR"}},
+       "verified"=>true}}}}
+
+
+  Final:
+Same
+
+Granted: true
+
+2.
+Initial: 
+perm_tkt_hash = {"7d282e1b-28b3-4ecf-979f-2969078daf57" => {
+   "resource_owner_pkey" => "ropkey",
+   "resource_set_id" => "1234",
+   "scopes" => ["read", "write"],
+   "claim_redirect_uri" => "http://192.168.33.10",
+   "claims_array" => ["Issuer.attr1", "Issuer2.attr2", "Issuer3.attr3"],
+    "scopes_hash" => {
+      "read" => {
+          "policy_name" => "182423_read",
+          "policy_sets" => [["Issuer.attr1", "Issuer2.attr2" ], ["Issuer3.attr3"]]
+                    
+      },
+      "write" => {
+          "policy_name" => "182423_write",
+          "policy_sets" => [["Issuer5.attr5"]]
+      }
+   }    
+  }
+
+calling verify_policies first with dummy data : 
+
+curr_perm["claims_gathered"] = {}
+  curr_perm["claims_gathered"]["attr3"] = {
+     'issuer' => "Issuer3",
+      'attribute' => "attr3", 
+      'gathered_claims' => {"attr3" => {"issuer" => "FLJKJLAFJL", "attribute" => "attr3", "subject": "LAKSDJFLOWEUR"}},
+      'verified' => true
+  }
+  curr_perm["claims_gathered"]["attr5"] = {
+     'issuer' => "Issuer5",
+      'attribute' => "attr5", 
+      'gathered_claims' => {"attr5" => {"issuer" => "FLJKJLAFJL", "attribute" => "atttr5", "subject": "LAKSDJFLOWEUR"}},
+      'verified' => true
+  }
+
+Intermediate:
+{"7d282e1b-28b3-4ecf-979f-2969078daf57"=>
+  {"resource_owner_pkey"=>"ropkey",
+   "resource_set_id"=>"1234",
+   "scopes"=>["read", "write"],
+   "claim_redirect_uri"=>"http://192.168.33.10",
+   "claims_array"=>["Issuer.attr1", "Issuer2.attr2", "Issuer3.attr3"],
+   "scopes_hash"=>
+    {"read"=>
+      {"policy_name"=>"182423_read",
+       "policy_sets"=>[["Issuer.attr1", "Issuer2.attr2"], ["Issuer3.attr3"]]},
+     "write"=>
+      {"policy_name"=>"182423_write", "policy_sets"=>[["Issuer5.attr5"]]}},
+   "claims_gathered"=>
+    {"attr3"=>
+      {"issuer"=>"Issuer3",
+       "attribute"=>"attr3",
+       "gathered_claims"=>
+        {"attr3"=>
+          {"issuer"=>"FLJKJLAFJL",
+           "attribute"=>"attr3",
+           :subject=>"LAKSDJFLOWEUR"}},
+       "verified"=>true},
+     "attr5"=>
+      {"issuer"=>"Issuer5",
+       "attribute"=>"attr5",
+       "gathered_claims"=>
+        {"attr5"=>
+          {"issuer"=>"FLJKJLAFJL",
+           "attribute"=>"atttr5",
+           :subject=>"LAKSDJFLOWEUR"}},
+       "verified"=>true}}}}
+
+Final: 
+
+Same
+Granted: true
+
+3.
+
+Initial: 
+
+perm_tkt_hash = {"7d282e1b-28b3-4ecf-979f-2969078daf57" => {
+   "resource_owner_pkey" => "ropkey",
+   "resource_set_id" => "1234",
+   "scopes" => ["read", "write"],
+   "claim_redirect_uri" => "http://192.168.33.10",
+   "claims_array" => ["Issuer.attr1", "Issuer2.attr2", "Issuer3.attr3"],
+    "scopes_hash" => {
+      "read" => {
+          "policy_name" => "182423_read",
+          "policy_sets" => [["Issuer.attr1", "Issuer2.attr2" ], ["Issuer3.attr3"]]
+                    
+      },
+      "write" => {
+          "policy_name" => "182423_write",
+          "policy_sets" => [["Issuer5.attr5"]]
+                    
+      }
+
+
+   }    
+  }
+
+calling verify_policies first with dummy data : 
+
+curr_perm["claims_gathered"] = {}
+  curr_perm["claims_gathered"]["attr2"] = {
+     'issuer' => "Issuer2",
+      'attribute' => "attr2", 
+      'gathered_claims' => {"attr2" => {"issuer" => "FLJKJLAFJL", "attribute" => "attr2", "subject": "LAKSDJFLOWEUR"}},
+      'verified' => true
+  }
+  curr_perm["claims_gathered"]["attr5"] = {
+     'issuer' => "Issuer5",
+      'attribute' => "attr5", 
+      'gathered_claims' => {"attr5" => {"issuer" => "FLJKJLAFJL", "attribute" => "atttr5", "subject": "LAKSDJFLOWEUR"}},
+      'verified' => true
+  }
+
+  Intermediate:
+
+
+{"7d282e1b-28b3-4ecf-979f-2969078daf57"=>
+  {"resource_owner_pkey"=>"ropkey",
+   "resource_set_id"=>"1234",
+   "scopes"=>["read", "write"],
+   "claim_redirect_uri"=>"http://192.168.33.10",
+   "claims_array"=>["Issuer.attr1", "Issuer2.attr2", "Issuer3.attr3"],
+   "scopes_hash"=>
+    {"read"=>
+      {"policy_name"=>"182423_read",
+       "policy_sets"=>[["Issuer.attr1", "Issuer2.attr2"], ["Issuer3.attr3"]]},
+     "write"=>
+      {"policy_name"=>"182423_write", "policy_sets"=>[["Issuer5.attr5"]]}},
+   "claims_gathered"=>
+    {"attr2"=>
+      {"issuer"=>"Issuer2",
+       "attribute"=>"attr2",
+       "gathered_claims"=>
+        {"attr2"=>
+          {"issuer"=>"FLJKJLAFJL",
+           "attribute"=>"attr2",
+           :subject=>"LAKSDJFLOWEUR"}},
+       "verified"=>true},
+     "attr5"=>
+      {"issuer"=>"Issuer5",
+       "attribute"=>"attr5",
+       "gathered_claims"=>
+        {"attr5"=>
+          {"issuer"=>"FLJKJLAFJL",
+           "attribute"=>"atttr5",
+           :subject=>"LAKSDJFLOWEUR"}},
+       "verified"=>true}}}}
+
+Granted: false
+
+
