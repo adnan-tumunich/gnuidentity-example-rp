@@ -6,6 +6,7 @@ require 'date'
 require 'net/http'
 require 'securerandom'
 require 'multi_json'
+require 'pp'
 
 configure do
   set :bind, '0.0.0.0'
@@ -45,6 +46,27 @@ jwt_token_dummy =
   }
 }
 
+$perm_tkt_hash = {"7d282e1b-28b3-4ecf-979f-2969078daf57" => {
+   "resource_owner_pkey" => "ropkey",
+   "resource_set_id" => "1234",
+   "scopes" => ["read", "write"],
+   "claim_redirect_uri" => "http://192.168.33.10",
+   "claims_array" => ["Issuer1.attr1", "Issuer2.attr2", "Issuer3.attr3"],
+    "scopes_hash" => {
+      "read" => {
+          "policy_name" => "182423_read",
+          "policy_sets" => [["Issuer1.attr1", "Issuer2.attr2" ], ["Issuer3.attr3"]]
+                    
+      },
+       "write" => {
+          "policy_name" => "182423_write",
+          "policy_sets" => [["Issuer5.attr5"]]
+                    
+      }
+   }    
+  }
+} 
+
 =begin
 permission_ticket hash
 
@@ -54,6 +76,8 @@ perm_tkt_hash = {"7d282e1b-28b3-4ecf-979f-2969078daf57" => {
    scopes => [],
    claim_redirect_uri => " ",
    claims_array => ["Issuer.attribute", "Issuer2.attr2", "Issuer3.attr3"]
+   req_ver_attr => ["attr_by_self", "attr2_by_self",...]
+   req_ver_attr_http => "attr_by_self&"
    claims_gathered => {
        "Issuer.attribute" => { 
                                   issuer:
@@ -70,7 +94,7 @@ perm_tkt_hash = {"7d282e1b-28b3-4ecf-979f-2969078daf57" => {
    }
     scopes_hash => {
       "read" => {
-          policy_name => " "
+          policy_name => "182423_read"
           "policy_sets" => [["Issuer.attribute", "Issuer2.attribute2" ], ["Issuer3.attribute3"]] 
           // Each sub-array is a complete permission set. So if one sub-array is satisfied then permission can be granted
          
@@ -87,8 +111,8 @@ perm_tkt_hash = {"7d282e1b-28b3-4ecf-979f-2969078daf57" => {
 # Currently this doesn't work - only works for master zone 
 #ego = '87DYZCD8DV2ENR8RC2S425FZPB93CV56XHG4DAQVVZ93RCWES6M0'
 #ego_name = 'example-rp'
-ego = 'YFJMNXKCQX99KECSE5MNQ3P1PTJMGBRNSBDCPFXZA3MM0HKNHNFG'
-ego_name = 'master-zone'
+$ego = 'YFJMNXKCQX99KECSE5MNQ3P1PTJMGBRNSBDCPFXZA3MM0HKNHNFG'
+$ego_name = 'master-zone'
 
 
 #{"authorization_code" => ["AAT", "client_id"]}
@@ -144,15 +168,15 @@ end
 
 
 def get_policies(perm_tkt)
-  curr_perm = perm_tkt_hash[perm_tkt]
+  curr_perm = $perm_tkt_hash[perm_tkt]
   pkey = curr_perm["resource_owner_pkey"]
   scopes = curr_perm["scopes"]
   curr_perm["claims_array"] = []
-
-  scopes.each do |scope| 
-    policy_name = ("#{resource_set_id}_#{scope}")
+  scopes.each do |scope|
+    curr_perm["scopes_hash"][scope] = {}
+    policy_name = ("#{curr_perm['resource_set_id']}_#{scope}")
     curr_perm["scopes_hash"][scope]["policy_name"] = policy_name
-    get_policy_cmd = `gnunet-gns -u #{policy_name}.#{pkey}.zkey -t POLICY --raw`
+    get_policy_cmd =`gnunet-gns -u #{policy_name}.#{pkey}.zkey -t POLICY --raw`
     curr_perm["scopes_hash"][scope]["policy_sets"] = []
     policies = get_policy_cmd.split("\n")
     policies.each do |policy|
@@ -162,8 +186,80 @@ def get_policies(perm_tkt)
       iss_attr_array.each do |iss_attr|
         curr_perm["claims_array"].push(iss_attr)
       end
+    end
   end
+  pp $perm_tkt_hash
 end
+
+def gather_claims_request(perm_tkt)
+  curr_perm = $perm_tkt_hash[perm_tkt]
+  curr_perm["req_ver_attr"] = []
+  curr_perm["req_ver_attr_http"] = "" 
+  curr_perm["claims_array"].each do |claim|
+    attrib = claim.split('.')[1]
+    curr_perm["req_ver_attr"].push(attrib)
+    curr_perm["req_ver_attr_http"] += "#{attrib},"
+  end
+  #Deleting extra comma at the end
+  curr_perm["req_ver_attr_http"][-1] = ''
+  redirect "gnuidentity://?redirect_uri=http%3A%2F%2Ftestservice.gnu%3A4567%2Fclaims_gathering_cb%3Fpermission_ticket%3D#{perm_tkt}\
+&client_id=#{$ego}&issue_type=ticket\
+&requested_verified_attrs=#{curr_perm['req_ver_attr_http']}&nonce=1234"
+end
+
+def verify_claims(perm_tkt)
+  curr_perm = $perm_tkt_hash[perm_tkt]
+
+  #sample code. needs to be changed
+  curr_perm["claims_gathered"] = {}
+  curr_perm["claims_gathered"] = {}
+
+curr_perm["claims_gathered"] = {}
+  curr_perm["claims_gathered"]["attr2"] = {
+     'issuer' => "Issuer2",
+      'attribute' => "attr2", 
+      'gathered_claims' => {"attr2" => {"issuer" => "FLJKJLAFJL", "attribute" => "attr2", "subject": "LAKSDJFLOWEUR"}},
+      'verified' => true
+  }
+  curr_perm["claims_gathered"]["attr5"] = {
+     'issuer' => "Issuer5",
+      'attribute' => "attr5", 
+      'gathered_claims' => {"attr5" => {"issuer" => "FLJKJLAFJL", "attribute" => "atttr5", "subject": "LAKSDJFLOWEUR"}},
+      'verified' => true
+  }
+
+end
+
+
+def resolve_policies(perm_tkt)
+  policy_set_satisfied = true
+  curr_perm = $perm_tkt_hash[perm_tkt]
+  curr_perm['scopes_hash'].each do |scope_name,scope_value|
+    if policy_set_satisfied == false
+      break
+    end
+    scope_value['policy_sets'].each do |policy| 
+      policy_satisfied = true
+      policy.each do |issuer_attrib|
+        issuer,attrib = issuer_attrib.split('.')
+        if curr_perm['claims_gathered'][attrib] == nil || curr_perm['claims_gathered'][attrib]['issuer'] != issuer
+          policy_satisfied = false
+          break
+        end
+      end
+      if policy_satisfied == true
+        policy_set_satisfied = true
+        break
+      else
+        policy_set_satisfied = false
+      end
+    end
+  end
+  return policy_set_satisfied
+end
+
+
+
 
 # policy_hash -> {name: '123_read', value: ['XW0HP8SEQZ4SQGEH3PSHBB9E0TKDCQC6DNCX9QAYS0K5XXHBJJ20.student']}
 #permission_value -> [resource_id, [scopes]]
@@ -180,9 +276,6 @@ def resolve_policy(permission_ticket)
   return policy_hash
 end
 
-def gather_claims(permission_ticket)
-   
-end
 
 
 
@@ -321,11 +414,15 @@ end
 
 get '/test_cmd' do
 
-  r = `gnunet-gns -u 18687878_read.MFVZ0430P5CRHSYY8K23X45J06YYTXSJFG7PCTR608WZMJMBVBWG.zkey -t POLICY --raw`
-  x = r.split("\n")
-  puts x
-
-
+  #r = `gnunet-gns -u 18687878_read.MFVZ0430P5CRHSYY8K23X45J06YYTXSJFG7PCTR608WZMJMBVBWG.zkey -t POLICY --raw`
+  #x = r.split("\n")
+  #puts x
+  #get_policies("7d282e1b-28b3-4ecf-979f-2969078daf57")
+  #gather_claims_request("7d282e1b-28b3-4ecf-979f-2969078daf57")
+  verify_claims("7d282e1b-28b3-4ecf-979f-2969078daf57")
+  perm = resolve_policies("7d282e1b-28b3-4ecf-979f-2969078daf57")
+  puts "Permission granted: #{perm}"
+  "hello"
 end
 
 
