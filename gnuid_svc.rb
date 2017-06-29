@@ -46,12 +46,17 @@ jwt_token_dummy =
   }
 }
 
+
+
 $perm_tkt_hash = {"7d282e1b-28b3-4ecf-979f-2969078daf57" => {
    "resource_owner_pkey" => "ropkey",
    "resource_set_id" => "1234",
    "scopes" => ["read", "write"],
-   "claim_redirect_uri" => "http://192.168.33.10",
-   "claims_array" => ["Issuer1.attr1", "Issuer2.attr2", "Issuer3.attr3"],
+   "claims_redirect_uri" => "http://192.168.33.10",
+   "claims_array" => ["RWPKFRY7AKDBXJB8YWRJ0N1R3FB69VP3MFC28QZ0601VNCSRJMT0.member", "RWPKFRY7AKDBXJB8YWRJ0N1R3FB69VP3MFC28QZ0601VNCSRJMT0.student"],
+   "req_ver_attr" => ["hello", "student"],
+
+   
     "scopes_hash" => {
       "read" => {
           "policy_name" => "182423_read",
@@ -70,14 +75,18 @@ $perm_tkt_hash = {"7d282e1b-28b3-4ecf-979f-2969078daf57" => {
 =begin
 permission_ticket hash
 
+Resource set id in request: resource_owner_pkey.resource_set_id
+
 perm_tkt_hash = {"7d282e1b-28b3-4ecf-979f-2969078daf57" => {
    resource_owner_pkey: 
    resource_set_id: 
    scopes => [],
-   claim_redirect_uri => " ",
+   claims_redirect_uri => " ",
    claims_array => ["Issuer.attribute", "Issuer2.attr2", "Issuer3.attr3"]
    req_ver_attr => ["attr_by_self", "attr2_by_self",...]
    req_ver_attr_http => "attr_by_self&"
+   "claims_array" => ["Issuer1.attr1", "Issuer2.attr2", "Issuer3.attr3"],
+   "permission_granted" => false
    claims_gathered => {
        "Issuer.attribute" => { 
                                   issuer:
@@ -88,7 +97,8 @@ perm_tkt_hash = {"7d282e1b-28b3-4ecf-979f-2969078daf57" => {
        "Issuer2.attributre2" => {
                                   issuer: Issuer2
                                   attribute: attribute2
-                                  gathered_claims: {}
+                                  signature:
+                                  expiration: 
                                   verified: true/false
                                   }
    }
@@ -172,6 +182,7 @@ def get_policies(perm_tkt)
   pkey = curr_perm["resource_owner_pkey"]
   scopes = curr_perm["scopes"]
   curr_perm["claims_array"] = []
+  curr_perm['claims_gathered'] = {}
   scopes.each do |scope|
     curr_perm["scopes_hash"][scope] = {}
     policy_name = ("#{curr_perm['resource_set_id']}_#{scope}")
@@ -185,6 +196,7 @@ def get_policies(perm_tkt)
       iss_attr_array = policy_hash["policy"]
       iss_attr_array.each do |iss_attr|
         curr_perm["claims_array"].push(iss_attr)
+        curr_perm['claims_gathered'][iss_attr] = {}
       end
     end
   end
@@ -202,6 +214,7 @@ def gather_claims_request(perm_tkt)
   end
   #Deleting extra comma at the end
   curr_perm["req_ver_attr_http"][-1] = ''
+  #response = `gnunet-namestore -p -z master-zone -a -n #{requested_verified_attr} -t ATTR -V "KNKSSJW5X9ERZ9AJ88D202WPFEGCZFJ2X8E5R90C8DNXDQXPQ8YG student" -e 1d`
   redirect "gnuidentity://?redirect_uri=http%3A%2F%2Ftestservice.gnu%3A4567%2Fclaims_gathering_cb%3Fpermission_ticket%3D#{perm_tkt}\
 &client_id=#{$ego}&issue_type=ticket\
 &requested_verified_attrs=#{curr_perm['req_ver_attr_http']}&nonce=1234"
@@ -209,6 +222,22 @@ end
 
 def verify_claims(perm_tkt)
   curr_perm = $perm_tkt_hash[perm_tkt]
+  curr_perm["claims_gathered"] = {}
+  curr_perm['claims_gathered'].each do |claim|
+    credential = "#{claim['issuer']}.#{claim['attribute']} -> #{claim['subject']} | #{claim['signature']} | #{claim['expiration']}"
+    verify_cmd = "gnunet-credential --verify --issuer=#{ego} --attribute=#{requested_verified_attr} --subject=#{jwt_token_credential[:subject]} --credential=\"#{credential}\""
+    response = `timeout 10 #{verify_cmd}`
+
+    if response == ""
+      claim['verified'] = false
+    elsif response[-12..-1] == "Successful.\n"
+      claim['verified'] = true
+    end
+  end
+
+
+
+
 
   #sample code. needs to be changed
   curr_perm["claims_gathered"] = {}
@@ -242,7 +271,7 @@ def resolve_policies(perm_tkt)
       policy_satisfied = true
       policy.each do |issuer_attrib|
         issuer,attrib = issuer_attrib.split('.')
-        if curr_perm['claims_gathered'][attrib] == nil || curr_perm['claims_gathered'][attrib]['issuer'] != issuer
+        if curr_perm['claims_gathered'][issuer_attrib] == nil || curr_perm['claims_gathered'][issuer_attrib]['verified'] == false
           policy_satisfied = false
           break
         end
@@ -599,10 +628,16 @@ post '/resource_perm_reg' do
     scopes = @request_payload["scopes"]
 
     
-    permission_ticket = SecureRandom.uuid
-    permission_reg[permission_ticket] = [rsrc_id,scopes]
+    perm_tkt = SecureRandom.uuid
+    $perm_tkt_hash[perm_tkt] = {}
+    $perm_tkt_hash[perm_tkt]['resource_owner_pkey'] = rsrc_id.split('.')[0]
+    $perm_tkt_hash[perm_tkt]['resource_set_id'] = rsrc_id.split('.')[1]
+    $perm_tkt_hash[perm_tkt]['scopes'] = scopes
 
-    puts permission_reg.inspect
+    #get policies for scopes
+    get_policies(perm_tkt)      
+
+    puts $perm_tkt_hash.inspect
     status 201
     content_type :json 
     {:ticket => permission_ticket}.to_json
@@ -623,12 +658,13 @@ end
 post '/rpt' do
   valid = validate_bearer_token(env,valid_aat)
   if valid
-    permission_ticket = @request_payload["ticket"]
+    perm_tkt = @request_payload["ticket"]
 
     #Check if ticket exists 
-    if permission_reg[permission_ticket]
-      rsrc_id = permission_reg[permission_ticket][0]
-      scopes = permission_reg[permission_ticket][1]
+    if $perm_tkt_hash[perm_tkt]
+      curr_perm = $perm_tkt_hash[perm_tkt]
+      rsrc_id = perm_tkt['resource_set_id']
+      scopes = perm_tkt['scopes']
     else
       status 400
       content_type :json 
@@ -637,7 +673,8 @@ post '/rpt' do
     end
 
 
-    if gathered_claims[permission_ticket].nil?
+    perm = curr_perm['permission_granted']
+    if perm.nil? || perm == false
       status 403
       content_type :json
       halt 403, json({error: "need_info",
@@ -656,7 +693,7 @@ post '/rpt' do
 =end
                ],
                redirect_user: true,
-               ticket: permission_ticket
+               ticket: perm_tkt
              }
              }})
         
@@ -664,7 +701,8 @@ post '/rpt' do
 
     #Issue an RPT connecting resource & scope to RPT via permission ticket
     rpt = SecureRandom.hex
-    rpt_scope[rpt] = permission_ticket
+    curr_perm['rpt'] = rpt
+    rpt_scope[rpt] = perm_tkt
 
     puts rpt_scope.inspect
 
@@ -679,14 +717,15 @@ end
 
 #RPT claims gathering endpoint
 get '/rpt_claims' do 
-  claims_redirect_uris = params[:claims_redirect_uri]
+  claims_redirect_uri = params[:claims_redirect_uri]
   valid = validate_bearer_token(env,valid_aat)
   #if valid
-    permission_ticket = params[:ticket]
+    perm_tkt = params[:ticket]
     #Check if ticket exists 
-    if permission_reg[permission_ticket]
-      rsrc_id = permission_reg[permission_ticket][0]
-      scopes = permission_reg[permission_ticket][1]
+    if $perm_tkt_hash[perm_tkt]
+      curr_perm = $perm_tkt_hash[perm_tkt]
+      rsrc_id = curr_perm['resource_set_id']
+      scopes = curr_perm['scopes']
     else
       status 400
       content_type :json 
@@ -696,16 +735,10 @@ get '/rpt_claims' do
     session["user"]
 
     puts "rpt claims"
-    attribute_name = "user"
+
+    gather_claims_request(perm_tkt)
 
 
-    #perm_tkt_hash[permission_ticket]
-
-    #response = `gnunet-namestore -p -z master-zone -a -n #{requested_verified_attr} -t ATTR -V "KNKSSJW5X9ERZ9AJ88D202WPFEGCZFJ2X8E5R90C8DNXDQXPQ8YG student" -e 1d`
-
-    redirect "gnuidentity://?redirect_uri=http%3A%2F%2Ftestservice.gnu%3A4567%2Fclaims_gathering_cb%3Fpermission_ticket%3D#{permission_ticket}\
-&client_id=YFJMNXKCQX99KECSE5MNQ3P1PTJMGBRNSBDCPFXZA3MM0HKNHNFG&issue_type=ticket\
-&requested_verified_attrs=user&nonce=1234"#include the attributes required from policy
     #TODO nonce should be a random integer 
 
   #else
@@ -718,29 +751,31 @@ end
 get '/claims_gathering_cb' do
   token = params[:id_token]
   id_ticket = params[:ticket]
-  permission_ticket = params[:permission_ticket]
+  perm_tkt = params[:permission_ticket]
 
   puts "here1"
   puts "id ticket #{id_ticket} \n"
-  puts "perm #{permission_ticket}"
+  puts "perm #{perm_tkt}"
  
   if (!id_ticket.nil?)
+    curr_perm = $perm_tkt_hash[perm_tkt]
     puts "here"
     jwt_token = exchange_code_for_token(id_ticket, 1234) #Change nonce here
     puts "JWT token"
     p jwt_token
     puts claims_redirect_uris.inspect
-    puts permission_ticket.inspect
+    puts perm_tkt.inspect
     puts jwt_token.class
-    gathered_claims[permission_ticket] = jwt_token
-    #verify policy here
-    success = true
+    gathered_claims[perm_tkt] = jwt_token
+    verify_claims(perm_tkt)
+    success = resolve_policies(perm_tkt)
     if success 
-
-      redirect claims_redirect_uris[permission_ticket] + "?authorization_state=claims_submitted"
+      curr_perm['permission_granted'] = true
+      redirect curr_perm['claims_redirect_uri'] + "?authorization_state=claims_submitted"
 
     else
       gathered_claims[permission_ticket] = nil
+      curr_perm['permission_granted'] = false
       redirect claims_redirect_uris[permission_ticket] + "?authorization_state=not_authorized"
       
     end
