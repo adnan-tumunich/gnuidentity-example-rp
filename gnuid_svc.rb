@@ -183,6 +183,8 @@ def get_policies(perm_tkt)
   scopes = curr_perm["scopes"]
   curr_perm["claims_array"] = []
   curr_perm['claims_gathered'] = {}
+  curr_perm["req_ver_attr"] = []
+  curr_perm["req_ver_attr_http"] = "" 
   scopes.each do |scope|
     curr_perm["scopes_hash"][scope] = {}
     policy_name = ("#{curr_perm['resource_set_id']}_#{scope}")
@@ -196,6 +198,7 @@ def get_policies(perm_tkt)
       iss_attr_array = policy_hash["policy"]
       iss_attr_array.each do |iss_attr|
         curr_perm["claims_array"].push(iss_attr)
+
         curr_perm['claims_gathered'][iss_attr] = {}
       end
     end
@@ -205,16 +208,6 @@ end
 
 def gather_claims_request(perm_tkt)
   curr_perm = $perm_tkt_hash[perm_tkt]
-  curr_perm["req_ver_attr"] = []
-  curr_perm["req_ver_attr_http"] = "" 
-  curr_perm["claims_array"].each do |claim|
-    attrib = claim.split('.')[1]
-    curr_perm["req_ver_attr"].push(attrib)
-    curr_perm["req_ver_attr_http"] += "#{attrib},"
-  end
-  #Deleting extra comma at the end
-  curr_perm["req_ver_attr_http"][-1] = ''
-  #response = `gnunet-namestore -p -z master-zone -a -n #{requested_verified_attr} -t ATTR -V "KNKSSJW5X9ERZ9AJ88D202WPFEGCZFJ2X8E5R90C8DNXDQXPQ8YG student" -e 1d`
   redirect "gnuidentity://?redirect_uri=http%3A%2F%2Ftestservice.gnu%3A4567%2Fclaims_gathering_cb%3Fpermission_ticket%3D#{perm_tkt}\
 &client_id=#{$ego}&issue_type=ticket\
 &requested_verified_attrs=#{curr_perm['req_ver_attr_http']}&nonce=1234"
@@ -234,6 +227,19 @@ def verify_claims(perm_tkt)
       claim['verified'] = true
     end
   end
+
+  def issue_verified_attribute(issuer_attr,scope,count)
+      issuer = issuer_attr.split('.')[0]
+      attrib = issuer_attr.split('.')[1]
+      requested_verified_attr = "#{attrib}_#{scope}_#{count}"
+
+
+      curr_perm["req_ver_attr"].push(requested_verified_attr)
+      curr_perm["req_ver_attr_http"] += "#{requested_verified_attrib},"
+      curr_perm["req_ver_attr_http"][-1] = ''
+      response = `gnunet-namestore -p -z master-zone -a -n #{requested_verified_attr} -t ATTR -V "#{issuer} #{attrib}" -e 1h`
+  end
+
 
 
 
