@@ -34,7 +34,7 @@ http://testservice.gnu:4567/claims_gathering_cb?permission_ticket=7d282e1b-28b3-
    "signature"=>
     "BU86Q6sxc024DrOAv14DbaXTtVxuCsw8MHG3abOVQZ4Fjcn2L32wSznkAx/CRezWD4/PO12oyrVTLYGQTeSpyg===",
    "attribute"=>"hello",
-   "expiration"=>1498214818985028},
+   "expiration"=>1498214818985028},   
  "iss"=>"FVRVXM63WBPJSGJYV4CFNHXVRT014Z9EXBVE9Z0EDFNWP3NG2M50",
  "exp"=>1498218529868562,
  "nbf"=>1498216729868562,
@@ -66,8 +66,8 @@ gnunet-credential --issue --ego=tum --subject=FVRVXM63WBPJSGJYV4CFNHXVRT014Z9EXB
 Verify:
 
 Policy: 
-{"array":["KNKSSJW5X9ERZ9AJ88D202WPFEGCZFJ2X8E5R90C8DNXDQXPQ8YG.student"]}
-{"array":["KNKSSJW5X9ERZ9AJ88D202WPFEGCZFJ2X8E5R90C8DNXDQXPQ8YG.student"]}
+{"policy":["KNKSSJW5X9ERZ9AJ88D202WPFEGCZFJ2X8E5R90C8DNXDQXPQ8YG.student"]}
+{"policy":["KNKSSJW5X9ERZ9AJ88D202WPFEGCZFJ2X8E5R90C8DNXDQXPQ8YG.student"]}
 
 
 Credential:
