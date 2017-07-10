@@ -63,6 +63,11 @@ $perm_tkt_hash = {"7d282e1b-28b3-4ecf-979f-2969078daf57" => {
       }
       
    }    
+  },
+  "49edb94f-4710-4c1e-a46b-147a34254a9e" => {
+     "resource_set_id" => "123456",
+    "scopes" => ["read"],  
+    "permission_granted" => true
   }
 } 
 
@@ -130,7 +135,7 @@ permission_reg = {"7d282e1b-28b3-4ecf-979f-2969078daf57"=>["MFVZ0430P5CRHSYY8K23
 
 #requesting party token
 #{"rpt" => "permission_ticket"}
-rpt_scope = {}
+$rpt_scope = {"7ed619d1d1dc3ecaf7156a039519c653" => "49edb94f-4710-4c1e-a46b-147a34254a9e"}
 
 # ticket => client_redirect_uri
 claims_redirect_uris = {"7d282e1b-28b3-4ecf-979f-2969078daf57" => "http://client.example.com"}
@@ -170,6 +175,7 @@ def get_policies(perm_tkt)
   curr_perm['claims_gathered'] = {}
   curr_perm["req_ver_attr"] = {}
   curr_perm["req_ver_attr_http"] = "" 
+  curr_perm["scopes_hash"] = {}
   attr_count = 0 
   scopes.each do |scope|
     curr_perm["scopes_hash"][scope] = {}
@@ -546,6 +552,7 @@ post '/resource_perm_reg' do
   valid = validate_bearer_token(env,valid_pat)
   
   if valid 
+    puts @request_payload.inspect
     rsrc_id = @request_payload["resource_set_id"]
     scopes = @request_payload["scopes"]
 
@@ -562,7 +569,7 @@ post '/resource_perm_reg' do
     puts $perm_tkt_hash.inspect
     status 201
     content_type :json 
-    {:ticket => permission_ticket}.to_json
+    {:ticket => perm_tkt}.to_json
     
   else
     halt 401
@@ -621,9 +628,9 @@ post '/rpt' do
     #Issue an RPT connecting resource & scope to RPT via permission ticket
     rpt = SecureRandom.hex
     curr_perm['rpt'] = rpt
-    rpt_scope[rpt] = perm_tkt
+    $rpt_scope[rpt] = perm_tkt
 
-    puts rpt_scope.inspect
+    puts $rpt_scope.inspect
 
     status 200
     content_type :json 
@@ -711,6 +718,8 @@ end
 
 before '/rpt_status' do
   request.body.rewind
+  puts request.body.read
+  request.body.rewind
   @request_payload = JSON.parse request.body.read
 end
 #RPT introspection endpoint
@@ -718,19 +727,21 @@ post '/rpt_status' do
 
   valid = validate_bearer_token(env,valid_pat)
   if valid
-    rpt = @request_payload["rpt"]
+    rpt = @request_payload["token"]
 
     check_nil(rpt,"No RPT given")
 
-    permission_ticket = rpt_scope[rpt]
+    permission_ticket = $rpt_scope[rpt]
 
     check_nil(permission_ticket, "No permission associated with RPT")
-    check_nil(permission_reg[permission_ticket], "Permission expired")
+    check_nil($perm_tkt_hash[permission_ticket], "Permission expired")
 
-    
-    puts permission_reg.inspect
-    resource_id = permission_reg[permission_ticket][0]
-    scopes = permission_reg[permission_ticket][1]
+    puts "rpt: #{rpt}"
+    puts "perm ticket : #{[permission_ticket]}"
+    puts $perm_tkt_hash.inspect
+    curr_perm = $perm_tkt_hash[permission_ticket]
+    resource_id = curr_perm["resource_set_id"]
+    scopes = curr_perm["scopes"]
 
     expiry = Time.now.to_i + 10*60 #EPOCH
 
