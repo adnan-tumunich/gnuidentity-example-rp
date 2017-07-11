@@ -1,0 +1,8 @@
+{"ticket":"49edb94f-4710-4c1e-a46b-147a34254a9e"}
+curl -i http://192.168.33.10:4567/rpt_claims?ticket=49edb94f-4710-4c1e-a46b-147a34254a9e -H "Authorization: Bearer valid_aat_1"
+gnuidentity://?redirect_uri=http%3A%2F%2Ftestservice.gnu%3A4567%2Fclaims_gathering_cb%3Fpermission_ticket%3D49edb94f-4710-4c1e-a46b-147a34254a9e&client_id=YFJMNXKCQX99KECSE5MNQ3P1PTJMGBRNSBDCPFXZA3MM0HKNHNFG&issue_type=ticket&requested_verified_attrs=student_read_0,student_read_1&nonce=1234
+
+
+curl -i http://192.168.33.10:4567/rpt?ticket=7d282e1b-28b3-4ecf-979f-2969078daf57 -H "Authorization: Bearer valid_aat_1"
+
+curl -H "Content-Type: application/json" -H "Authorization: Bearer valid_aat_1" -X POST -d '{"ticket":"49edb94f-4710-4c1e-a46b-147a34254a9e"}' http://192.168.33.10:4567/rpt
